@@ -1,0 +1,11 @@
+# CUDA wheels from PyPI include the runtime; NVIDIA kernel driver stays on the host.
+ARG PYTHON_BASE=python:3.11-slim-bookworm
+FROM ${PYTHON_BASE}
+COPY requirements.txt build-ca.pem /tmp/build/
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev git \
+    && PIP_CERT=/tmp/build/build-ca.pem python -m pip install --no-cache-dir -r /tmp/build/requirements.txt \
+    && python -m pip check \
+    && python -c "import torch,torchvision; assert torch.version.cuda; from transformers import Qwen3VLForConditionalGeneration; from swift.arguments import SftArguments; print(torch.__version__, torch.version.cuda)" \
+    && python -m pip freeze > /opt/requirements-runtime-lock.txt \
+    && apt-get purge -y gcc libc6-dev && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/* /tmp/build

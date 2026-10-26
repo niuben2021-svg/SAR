@@ -1,0 +1,58 @@
+name: Build Qwen3-VL-4B offline release
+on:
+  push:
+    branches: [delivery/qwen3vl4b-offline-20261026]
+permissions:
+  contents: write
+concurrency:
+  group: qwen3vl4b-offline-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SAR_IMAGE_TAG: sar-vlm:qwen3vl4b
+      TAG: qwen3vl4b-offline-20261023
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Free unused preinstalled SDKs on this disposable CI runner
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+      - name: Build GPU dependency environment
+        run: bash scripts/offline/build_runtime.sh
+      - name: Run offline CPU data checks and tests
+        run: |
+          mkdir -p /tmp/sar-check/model /tmp/sar-check/data /tmp/sar-check/output
+          bash scripts/offline/run.sh /tmp/sar-check/model /tmp/sar-check/data /tmp/sar-check/output cpu
+      - name: Export environment and prepare parts
+        run: |
+          mkdir -p release-assets
+          bash scripts/offline/export_image.sh sar-vlm:qwen3vl4b /tmp/sar-vlm-qwen3vl4b-image.tar.gz
+          split -d --numeric-suffixes=1 -a 2 -b 1500000000 /tmp/sar-vlm-qwen3vl4b-image.tar.gz release-assets/sar-vlm-qwen3vl4b-image.tar.gz.part
+          cp /tmp/sar-vlm-qwen3vl4b-image.tar.gz.sha256 release-assets/
+          cp downloads/sar-vlm-qwen3vl4b-source.tar.gz* release-assets/
+          cp docs/qwen3vl4b-offline-guide.md release-assets/
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          parts=sorted(Path('release-assets').glob('*.part*'))
+          digest=hashlib.sha256()
+          for p in parts:
+              with p.open('rb') as f:
+                  for data in iter(lambda:f.read(8*1024*1024),b''): digest.update(data)
+          expected=Path('release-assets/sar-vlm-qwen3vl4b-image.tar.gz.sha256').read_text().split()[0]
+          assert digest.hexdigest()==expected
+          text=Path('docs/github-download-readme.md').read_text()
+          text+='\n本次 GitHub Actions 构建镜像 SHA256：`'+expected+'`。分卷数量：'+str(len(parts))+'。\n'
+          Path('release-assets/DOWNLOAD_README.md').write_text(text)
+          PY
+          cd release-assets
+          sha256sum * > /tmp/sar-checksums
+          mv /tmp/sar-checksums SHA256SUMS
+      - name: Upload files and publish release
+        run: |
+          gh release upload "$TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --notes-file release-assets/DOWNLOAD_README.md --draft=false

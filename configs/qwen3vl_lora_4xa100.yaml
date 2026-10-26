@@ -1,0 +1,22 @@
+# Starting values from PROJECT_CONTEXT.md §3.1; not measured optimal settings.
+# Official API reference: ms-swift Qwen3-VL Best Practice, checked 2026-10-21.
+# Actual installed `swift sft --help` is still required by the validator.
+model: Qwen/Qwen3-VL-8B-Instruct
+nproc_per_node: 4
+image_max_token_num: 1024
+seed: 42
+tuner_type: lora
+torch_dtype: bfloat16
+lora_rank: 16
+lora_alpha: 32
+target_modules: all-linear
+freeze_vit: true
+freeze_aligner: true
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 4
+max_length: 2048
+gradient_checkpointing: true
+attn_impl: sdpa
+num_train_epochs: 1
+learning_rate: 0.0001
+# DDP first. DeepSpeed/FlashAttention not prerequisites for this validation.

@@ -1,0 +1,12 @@
+# All inputs are mounted read-only; all generated artifacts go to /outputs.
+model_path: Qwen/Qwen3-VL-4B-Instruct
+revision: main
+local_files_only: true
+device: cpu
+seed: 42
+image_max_tokens: 1024
+max_new_tokens: 128
+input_image: null
+manifest: null
+output_dir: /outputs/mvp
+report_dir: /outputs/reports

@@ -1,8 +1,10 @@
 # TASKS.md — SAR-VLM 分阶段开发任务与验收规范
 
+> **2026-10-23 用户已确定更新**：首轮底座改为 `Qwen/Qwen3-VL-4B-Instruct`，BF16 LoRA；内网 Docker 20.10.24、麒麟 V10、x86、驱动 595.58.03、2×A100 40GB。下文原 8B/四卡要求作为历史设计参考，当前实现以 `docs/ADR-0002-qwen3vl4b.md` 和 `docs/qwen3vl4b-offline-guide.md` 为准。
+
 > 版本0.1，2026-10-19。目标读者：Codex执行代理/研发成员/项目负责人。  
-> 当前项目状态：**未确认仓库是否已有代码；尚无本项目已跑通的训练/评测结果；待从P0最小MVP启动。**  
-> 硬件基准：**4×A100 40GB**，首个GPU前向可只使用`cuda:0`。基础模型：**Qwen3-VL-8B-Instruct**。  
+> 当前项目状态：**P0 CPU 数据/配置/测试链路已实现；Qwen8B 真实加载/前向受当前机器无 CUDA GPU、无权重阻塞，MVP 整体 PARTIAL；没有训练或 SAR 识别评测结果。**
+> 当前目标（2026-10-22用户更新）：**麒麟V10、x86、驱动595.58.03、2×A100 40GB**；原四卡方案保留为参考，首个GPU前向可只使用`cuda:0`。基础模型：**Qwen3-VL-8B-Instruct**。
 > 状态标签：**【已确定】**架构/需求约束，**【建议尝试】**可调整的实现，**【尚需验证】**研究假设/实测结论。  
 > 若仓库已有同等功能，Codex需先审阅再复用/修复，不能机械重复创建。
 
@@ -14,7 +16,16 @@
 
 **P0优先于一切高级研发**。在P0完成前，不进入任何需要真实领域性能的SFT/检测训练，更不假设已拥有大规模专业标注或SAR相位数据。
 
-优先级：`P0`=立即/阻塞后续，`P1`=基础模型阶段必须，`P2`=核心研究模块，`P3`=论文级可信与集成。任务状态：`TODO | IN_PROGRESS | DONE | PARTIAL | BLOCKED | NOT_RUN`。本文件初始全为`TODO`。
+优先级：`P0`=立即/阻塞后续，`P1`=基础模型阶段必须，`P2`=核心研究模块，`P3`=论文级可信与集成。任务状态：`TODO | IN_PROGRESS | DONE | PARTIAL | BLOCKED | NOT_RUN`。本文件初始全为`TODO`；2026-10-21 的实际状态见各 P0 条目与 `reports/runs/mvp_report.md`。
+
+## OFFLINE-01 离线部署准备（2026-10-22）
+
+- **状态**：PARTIAL；CPU 工程与脚本可验证，真实内网 GPU、实际 FAIR-CSAR 样例/标注和容器构建结果分别记录，不能合并为一次成功。
+- **数据**：用户已下载 FAIR-CSAR 复图像目标数据集 V1.0；尚未提供本环境可读取的文件，复数编码/变量/标签/许可待实际核对。
+- **新增交付**：Dockerfile、完整模型下载与校验、镜像save/load、断网运行脚本、复图像幅度显示副本、双卡LoRA配置、最多10步的显式训练冒烟入口。
+- **硬件调整**：`configs/qwen3vl_lora_2xa100.yaml` 每卡batch1/累积8/有效batch16，先单卡再双卡。原 `4xa100` 配置不作为本次启动默认值。
+- **实际验证（2026-10-22）**：54项CPU测试通过、1项GPU测试跳过；独立解压源码包复测同结果。小型官方镜像save/load/SHA256流程通过。CUDA基础镜像大层下载重试后停止，完整CUDA镜像构建/真实前向/训练NOT_RUN。
+- **文档/证据**：`docs/offline-deployment.md`、`docs/ADR-0001-actual-two-gpu-target.md`、`reports/runs/offline_delivery_report.md`。
 
 ## 1. 第一阶段：最小可运行MVP（P0，必须先做）
 
@@ -27,7 +38,8 @@
 - **步骤**：`pwd && find . -maxdepth 2 -type f ...`盘点；记录Python、torch、transformers、ms-swift、CUDA、`nvidia-smi`、`nvidia-smi topo -m`；检查是否已存在模型权重缓存与真实SAR样本路径。检查磁盘余量与联网限制。
 - **输出**：`reports/runs/environment.json`、`reports/runs/environment.md`，文件列出实际命令及版本，标记模型/数据有无，Git commit；不得包含Token/私有秘钥。
 - **验收**：环境报告字段不缺；`torch.cuda.device_count()`与实际可见GPU一致或说明受限原因；标出框架兼容风险；绝不擅自改系统驱动。
-- **状态**：TODO。
+- **状态**：DONE。
+- **执行记录（2026-10-21）**：实测 Python 3.12.14、CPU torch，CUDA count=0；nvidia-smi 不存在。配置/默认 Hub 缓存范围内未发现 Qwen8B 权重，未配置真实 SAR 数据。见 reports/runs/environment.json。
 
 ### MVP-01 最小工程骨架和配置体系（P0）
 
@@ -36,7 +48,8 @@
 - **步骤**：建立可安装的`src/sar_vlm`包、`pyproject.toml`、`configs/mvp.yaml`、`tests/`、`.gitignore`、最小README。保存环境/设备/model_path/输入图/输出路径/seed/视觉Token预算等配置；不预建大量空模块。
 - **输出**：包安装接口`pip install -e .`；基础配置读取`python -m sar_vlm.cli.check_env --config configs/mvp.yaml`（命令是**待实现的对外契约**）。
 - **验收**：本地包可导入；无GPU时配置仍能加载；非法路径/参数有清晰错误；输出写到`outputs/`并处于gitignore。
-- **状态**：TODO。
+- **状态**：DONE。
+- **执行记录（2026-10-21）**：已创建可安装 src 包、pyproject、YAML、CLI、README；editable 安装和无 GPU 配置检查通过。
 
 ### MVP-02 数据读取与Schema验证（P0）
 
@@ -45,7 +58,8 @@
 - **步骤**：实现`SARReader`+`ImageRecord`；记录原图路径、宽高、通道、dtype、图像sha256、基础Metadata及缺失掩码；实现Canonical JSONL schema的读取/校验。原图始终只读；显示归一化仅用于副本。
 - **输出**：`src/sar_vlm/data/reader.py`、`schema.py`、`tests/test_reader.py`、`test_schema.py`及`python -m sar_vlm.cli.smoke_data --config configs/mvp.yaml`。
 - **验收**：能读取一个测试图并打印尺寸/dtype/hash；合法空目标集支持；错误box、超界、缺字段报错；单测覆盖8bit、可能的16bit样本及坏路径。所有数据来源有`synthetic_fixture/verified/weak/...`标记。
-- **状态**：TODO。
+- **状态**：DONE。
+- **执行记录（2026-10-21）**：读取/schema/数据冒烟已实现，8-bit 与16-bit PNG/TIFF、非法框和原图只读测试通过；仅使用 synthetic_fixture，真实 SAR 数据仍缺失。
 
 ### MVP-03 官方Qwen3-VL-8B模型与processor加载（P0）
 
@@ -54,7 +68,8 @@
 - **步骤**：基于`transformers`官方`Qwen3VLForConditionalGeneration`与`AutoProcessor`实现独立adapter；设备优先单卡`cuda:0`、BF16；未兼容FlashAttention时使用默认/SDPA；打印实际加载的模型类、权重路径或revision及显存。
 - **输出**：`src/sar_vlm/models/qwen_adapter.py`，模型加载日志，`tests/test_model_smoke.py`（CPU侧仅做导入/mock；GPU的真实测试单独显式标记）。
 - **验收**：**实际可加载8B权重**并记录耗时和显存；参数无法加载时保存真实异常、状态`BLOCKED`，不得换成随机小模型却报告“Qwen8B已加载”。
-- **状态**：TODO。
+- **状态**：BLOCKED。
+- **执行记录（2026-10-21）**：官方模型类可导入、adapter 已实现；无 CUDA GPU/本地权重，尚未实际加载8B权重，不能据导入成功判定 DONE。
 
 ### MVP-04 完成一次真实前向推理（P0关键闸门）
 
@@ -63,7 +78,8 @@
 - **步骤**：使用正确processor/chat template构建多模态输入，限制视觉Token，调用`model.generate(do_sample=False, max_new_tokens=128)`或官方同等接口；裁除输入token后解码；记录输入形状、图像尺寸、推理耗时、峰值显存、完整文本输出。设置随机种子；`torch.inference_mode()`。
 - **输出**：`python -m sar_vlm.cli.smoke_forward --config configs/mvp.yaml --image <path> --query "..."`；`outputs/mvp/forward_output.json`（含`raw_text`、input、模型版本、真实设备）。
 - **验收**：**真实预训练Qwen3-VL-8B**完成一次图文前向，不是mock/规则输出；文件可解析；程序exit 0；实际日志可追踪。若文本并未输出可解析检测框，`detections=[]`，不伪造红框。
-- **状态**：TODO。
+- **状态**：BLOCKED。
+- **执行记录（2026-10-21）**：实际 smoke_forward 返回2，错误为 requested cuda:0, visible CUDA GPUs=0；forward_failure.json 已记录，没有真实生成输出。
 
 ### MVP-05 提供训练配置（不要求完成训练）（P0）
 
@@ -72,7 +88,8 @@
 - **步骤**：编写`configs/qwen3vl_lora_4xa100.yaml`和`/scripts/train_sft_4xa100.sh`；依据当前安装版本检查`swift sft --help`。初值：`NPROC_PER_NODE=4`、BF16、LoRA rank16/alpha32、每卡batch1、grad_acc4、`max_length=2048`、`IMAGE_MAX_TOKEN_NUM=1024`、梯度检查点、先冻结ViT/aligner、DeepSpeed ZeRO-2可选。训练脚本必须读取路径/参数，不写死私人目录。
 - **输出**：可检查的配置、`scripts/train_sft_4xa100.sh --help`/dry-run（若项目定义此入口），`reports/runs/config_validation.json`。
 - **验收**：所有字段有值、来源及类型，CLI参数确为安装版本支持；明确`TRAIN_NOT_EXECUTED`直到实际运行；若未准备核验SFT数据不得启动正式训练。**可解析训练配置≠训练已成功。**
-- **状态**：TODO。
+- **状态**：PARTIAL。
+- **执行记录（2026-10-21）**：LoRA YAML 与仅校验入口已创建。ms-swift 4.6.0 的 swift sft --help 被辅助解析器提前截获，原始结果 INCOMPLETE_HELP；官方 SftArguments 的 Namespace 参数/类型/choices 检查 PASS。未验证数据模板或实际训练启动，TRAIN_NOT_EXECUTED。
 
 ### MVP-06 简单测试、原图红框绘制和MVP交付（P0）
 
@@ -81,17 +98,18 @@
 - **步骤**：实现`draw_boxes`（只添加红色轮廓，默认3px、不加文字不改灰度；使用新文件输出）、基本bbox检查和Pytest；完成`/scripts/run_mvp.sh`；整理README运行说明和实际失败/阻塞记录。
 - **输出**：`outputs/mvp/boxed_fixture.png`、`outputs/mvp/forward_output.json`、`reports/runs/mvp_report.md`、完整pytest日志。
 - **验收**：`pytest -q tests/test_reader.py tests/test_schema.py tests/test_draw_boxes.py`通过；框外像素逐点与原图一致；原图hash在运行前后不变；GPU真实前向符合MVP-04；训练配置通过MVP-05检查。若GPU被阻塞，标记`MVP PARTIAL / GPU BLOCKED`，禁止写`DONE`。
-- **状态**：TODO。
+- **状态**：PARTIAL。
+- **执行记录（2026-10-21）**：CPU 测试和独立给框红框检查通过；run_mvp.sh --cpu 已运行。真实 GPU 前向仍阻塞，完整 MVP 不记 DONE。
 
 ### P0一次性交付验收清单
 
-- [ ] `python -m sar_vlm.cli.check_env --config configs/mvp.yaml` 可运行并生成真实设备报告。
-- [ ] `python -m sar_vlm.cli.smoke_data --config configs/mvp.yaml` 实际读取一张图并校验canonical记录。
+- [x] `python -m sar_vlm.cli.check_env --config configs/mvp.yaml` 可运行并生成真实设备报告。
+- [x] `python -m sar_vlm.cli.smoke_data --config configs/mvp.yaml` 实际读取一张图并校验canonical记录。
 - [ ] `python -m sar_vlm.cli.smoke_forward --config configs/mvp.yaml --image PATH --query "查找所有飞机"` 完成**真正的8B前向**，并保存原始输出；此时无检测能力也可以成功完成**前向MVP**。
 - [ ] `configs/qwen3vl_lora_4xa100.yaml`与`scripts/train_sft_4xa100.sh`可解析、参数存在且经安装版本帮助文本验证。
-- [ ] 运行`pytest -q`；对坐标合法性与只叠加红框至少有明确通过的自动化断言。
-- [ ] `README.md`给出一台新服务器的可复制复现步骤、必要环境、运行命令、文件路径、已知限制。
-- [ ] 报告**真实运行**的时间、设备、内存与失败，不声称实现SAR检测效果。
+- [x] 运行`pytest -q`；对坐标合法性与只叠加红框至少有明确通过的自动化断言。
+- [x] `README.md`给出一台新服务器的可复制复现步骤、必要环境、运行命令、文件路径、已知限制。
+- [x] 报告**真实运行**的时间、设备、内存与失败，不声称实现SAR检测效果。
 
 ### MVP入口约定示例（由Codex实现，当前并非已有命令）
 
@@ -347,3 +365,26 @@ Adapter和复杂联合训练代码。
 ## 10. 通俗版总结
 
 Codex的第一份工作**不是把科研构想一次性写成上万行代码**，而是搭建并证明以下五件事确实可运行：**图像能读、Qwen能加载、图文能前向、训练配置合法、测试能验收**。之后再逐步训练找得全的全图检测器、会选区域的场景网络、能核对SAR散射的物理模块，以及有证据才细分、否则拒识的认知模型。每一步都用真实测试和对照实验来决定是否继续，而不是提前宣布成功。
+
+## OFFLINE-02：4B 双 A100 离线微调交付（2026-10-23）
+
+状态：**PARTIAL**。环境和代码已构建并完成 CPU 工程验证；真实 4B GPU 前向、反传及双卡训练尚未运行。
+
+- [x] 用户授权将首轮模型改为 Qwen3-VL-4B-Instruct，记录 ADR-0002，保留 8B 对照配置。
+- [x] 4B/8B 架构校验、4B 下载入口、4B 单卡/双卡 LoRA 配置与启动代码。
+- [x] 自定义 CSV → ms-swift JSONL；显式用户审核、分组/相同图像跨 split 泄漏检查。
+- [x] 真实前向入口、3 步单卡短跑入口、用户显式启动的全训练集双卡入口；本次未训练。
+- [x] 实际构建 CUDA 环境：Python 3.11.17、torch 2.8.0+cu128、torchvision 0.23.0+cu128、
+      Transformers 4.57.6、ms-swift 4.6.0、PEFT 0.20.0。完整依赖清单已保存。
+- [x] 最终环境断网工程测试：60 passed / 1 GPU deselected；pip check 通过，训练计划解析通过。
+      首次容器测试因磁盘不足失败，修复临时目录后重跑通过，原失败日志保留。
+- [x] 宿主 CPU 测试：60 passed / 1 GPU skipped；ruff、shell 语法、git diff --check 通过。
+- [x] 用户数据准备、权重下载、镜像导入、GPU 检查、短跑、双卡微调、adapter 使用说明。
+- [ ] 真实权重下载：本云环境官方模型地址返回 403；用户需外网下载并转入内网。
+- [ ] FAIR-CSAR 实际文件格式/变量/标注核对；当前提供显式复图像显示转换和通用标签入口。
+- [ ] 麒麟 V10 + Docker 20.10.24 + Container Toolkit + 双 A100 的实际前向/反传/DDP。
+- [ ] 训练后的独立测试集准确率、物理信息增益与显存峰值评测；不得填写推测数值。
+
+镜像归档、源码归档及传输校验的最终结果见 `reports/runs/qwen3vl4b_delivery_report.md`。
+- [x] 4B 环境镜像实际导出（4,606,175,178 字节），SHA256 校验及 docker load 回导成功。
+- [x] 源码与说明独立打包；模型权重与数据集不包含在归档中。

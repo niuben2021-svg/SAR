@@ -1,0 +1,21 @@
+Metadata-Version: 2.4
+Name: sar-vlm
+Version: 0.1.0
+Summary: SAR-VLM reproducible MVP data and Qwen forward checks
+Requires-Python: >=3.11
+Requires-Dist: numpy>=1.26
+Requires-Dist: Pillow>=10
+Requires-Dist: pydantic<3,>=2
+Requires-Dist: PyYAML>=6
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: ruff>=0.9; extra == "dev"
+Provides-Extra: model
+Requires-Dist: torch>=2.6; extra == "model"
+Requires-Dist: torchvision>=0.21; extra == "model"
+Requires-Dist: transformers<5,>=4.57; extra == "model"
+Requires-Dist: accelerate>=1; extra == "model"
+Provides-Extra: training
+Requires-Dist: ms-swift==4.6.0; extra == "training"
+Requires-Dist: transformers<5,>=4.57; extra == "training"
+Requires-Dist: qwen-vl-utils>=0.0.14; extra == "training"

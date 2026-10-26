@@ -1,0 +1,13 @@
+# Paths are relative to this config file, not the invoking shell.
+model_path: Qwen/Qwen3-VL-4B-Instruct
+revision: main
+local_files_only: true
+device: cuda:0
+seed: 42
+image_max_tokens: 1024
+max_new_tokens: 128
+input_image: null
+manifest: null
+output_dir: ../outputs/mvp
+report_dir: ../reports/runs
+# No verified SAR inputs are bundled. CPU smoke creates an engineering fixture.

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sar-vlm"
+version = "0.1.0"
+description = "SAR-VLM reproducible MVP data and Qwen forward checks"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26", "Pillow>=10", "pydantic>=2,<3", "PyYAML>=6"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.9", "scipy>=1.11", "tifffile>=2024.1"]
+model = ["torch>=2.6", "torchvision>=0.21", "transformers>=4.57,<5", "accelerate>=1"]
+training = ["ms-swift==4.6.0", "transformers>=4.57,<5", "qwen-vl-utils>=0.0.14"]
+complex-data = ["scipy>=1.11", "tifffile>=2024.1"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["gpu: explicitly enabled real Qwen3-VL GPU smoke test"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
