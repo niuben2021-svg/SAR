@@ -391,11 +391,11 @@ Codex的第一份工作**不是把科研构想一次性写成上万行代码**�
 
 ## DELIVERY-02：ARM64 A100 CUDA 12.6 离线交付（2026-10-28）
 
-状态：PARTIAL（正在构建，GPU 训练 NOT RUN）。
+状态：DONE（ARM64 镜像/源码/指南发布）；目标 GPU 训练 NOT RUN。
 
 - [x] 已读取公开 AMD64 镜像内配置确认 linux/amd64；新增 docker-images/ 下载目录。
 - [x] 依据用户截图新增 ARM64/CUDA12.6 Dockerfile、原生 ARM CI、单 A100 配置与启动器。
 - [x] 官方不存在指定 2.8.0 ARM64 CUDA12.6 wheel，采用 2.9.1；决策见 ADR-0003。
 - [x] 下载、校验、导入、自己的数据准备及微调说明。
-- [ ] ARM64 镜像实际构建、离线 CPU 测试与 GitHub Release 下载校验。
+- [x] ARM64 镜像实际构建；60 passed / 1 GPU deselected；独立 Release 已发布；10 个小附件实际下载校验，三个大分卷 HTTP 200，全部附件摘要匹配。
 - [ ] 目标麒麟 ARM64 + A100 真实 GPU 前向、短跑与训练效果。

@@ -6,6 +6,28 @@
 
 Release 的 Assets 提供全部镜像分卷、配套源码 `sar-vlm-qwen3vl4b-arm64-source.tar.gz`、本说明、下载/导入脚本、校验文件、实际依赖清单和 CPU 测试日志。镜像不存储在普通 Git 目录中。构建和检查成功后才发布附件；若页面尚不存在，说明构建尚未成功发布。
 
+## 已发布文件（2026-10-28）
+
+原生 ARM64 构建成功，CPU 测试 60 passed / 1 GPU deselected。镜像共 3,618,078,157 字节，三个分卷。
+
+| 文件 | 下载 |
+| --- | --- |
+| ARM64-GUIDE.md | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/ARM64-GUIDE.md) |
+| BUILD-INFO.txt | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/BUILD-INFO.txt) |
+| cpu-tests.log | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/cpu-tests.log) |
+| download.sh | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/download.sh) |
+| image-inspect.json | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/image-inspect.json) |
+| import.sh | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/import.sh) |
+| requirements-arm64-actual.txt | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/requirements-arm64-actual.txt) |
+| sar-vlm-qwen3vl4b-arm64-cu126.tar.gz.part01 | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/sar-vlm-qwen3vl4b-arm64-cu126.tar.gz.part01) |
+| sar-vlm-qwen3vl4b-arm64-cu126.tar.gz.part02 | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/sar-vlm-qwen3vl4b-arm64-cu126.tar.gz.part02) |
+| sar-vlm-qwen3vl4b-arm64-cu126.tar.gz.part03 | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/sar-vlm-qwen3vl4b-arm64-cu126.tar.gz.part03) |
+| sar-vlm-qwen3vl4b-arm64-cu126.tar.gz.sha256 | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/sar-vlm-qwen3vl4b-arm64-cu126.tar.gz.sha256) |
+| sar-vlm-qwen3vl4b-arm64-source.tar.gz | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/sar-vlm-qwen3vl4b-arm64-source.tar.gz) |
+| SHA256SUMS | [下载](https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-arm64-cu126-20261028/SHA256SUMS) |
+
+[实际构建和测试日志](https://github.com/niuben2021-svg/SAR/actions/runs/40696853973)。全部小附件已公开下载并校验；大分卷 HTTP 200，GitHub 摘要与 SHA256SUMS 一致，未再次完整下载三个大分卷。GPU 前向/反传未运行。
+
 ## 与原版的区别
 
 - 平台从 linux/amd64 改为 linux/arm64，镜像标签 `sar-vlm:qwen3vl4b-arm64-cu126`。
