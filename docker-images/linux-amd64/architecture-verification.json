@@ -1,0 +1,6 @@
+{
+  "source": "https://github.com/niuben2021-svg/SAR/releases/download/qwen3vl4b-offline-20261023/sar-vlm-qwen3vl4b-image.tar.gz.part01",
+  "member": "blobs/sha256/1aa3477dd74315bf1956724e69d426c8e704386a6cbc26f3ea30333500a7b663",
+  "architecture": "amd64",
+  "os": "linux"
+}

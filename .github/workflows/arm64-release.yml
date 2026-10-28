@@ -1,0 +1,50 @@
+name: Build ARM64 CUDA 12.6 offline release
+on:
+  push:
+    branches: [delivery/docker-arm64-20261028]
+    paths-ignore: ['docker-images/**', 'reports/**', 'TASKS.md']
+permissions:
+  contents: write
+concurrency:
+  group: sar-arm64-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SAR_IMAGE_TAG: sar-vlm:qwen3vl4b-arm64-cu126
+      TAG: qwen3vl4b-arm64-cu126-20261028
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Build native ARM64 CUDA environment
+        run: |
+          uname -m
+          df -h /
+          bash scripts/offline/build_arm64.sh
+      - name: Validate offline environment and existing code
+        run: |
+          mkdir -p /tmp/sar-check/model /tmp/sar-check/data /tmp/sar-check/output release-assets
+          docker image inspect "$SAR_IMAGE_TAG" > release-assets/image-inspect.json
+          docker run --rm --network none "$SAR_IMAGE_TAG" python -m pip check
+          docker run --rm --network none "$SAR_IMAGE_TAG" cat /opt/requirements-runtime-lock.txt > release-assets/requirements-arm64-actual.txt
+          bash scripts/offline/run_arm64.sh /tmp/sar-check/model /tmp/sar-check/data /tmp/sar-check/output cpu 2>&1 | tee release-assets/cpu-tests.log
+          docker run --rm --network none --env PYTHONPATH=/opt/sar-vlm/src -v "$PWD:/opt/sar-vlm:ro" -w /opt/sar-vlm "$SAR_IMAGE_TAG" python scripts/offline/check_arm64_args.py
+      - name: Export, checksum and prepare downloads
+        run: |
+          docker save "$SAR_IMAGE_TAG" | gzip -1 | split -d --numeric-suffixes=1 -a 2 -b 1500000000 - release-assets/sar-vlm-qwen3vl4b-arm64-cu126.tar.gz.part
+          python scripts/offline/package_arm64.py
+          git archive --format=tar.gz --prefix=sar-vlm/ HEAD > release-assets/sar-vlm-qwen3vl4b-arm64-source.tar.gz
+          cp docker-images/linux-arm64/README.md release-assets/ARM64-GUIDE.md
+          cp docker-images/linux-arm64/download.sh docker-images/linux-arm64/import.sh release-assets/
+          cd release-assets
+          sha256sum * > /tmp/arm64-checksums
+          mv /tmp/arm64-checksums SHA256SUMS
+      - name: Publish independently from AMD64 version
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title 'Qwen3-VL-4B ARM64 CUDA 12.6 offline environment' --notes-file release-assets/ARM64-GUIDE.md
+          fi
+          gh release upload "$TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft=false --notes-file release-assets/ARM64-GUIDE.md

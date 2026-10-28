@@ -388,3 +388,14 @@ Codex的第一份工作**不是把科研构想一次性写成上万行代码**�
 镜像归档、源码归档及传输校验的最终结果见 `reports/runs/qwen3vl4b_delivery_report.md`。
 - [x] 4B 环境镜像实际导出（4,606,175,178 字节），SHA256 校验及 docker load 回导成功。
 - [x] 源码与说明独立打包；模型权重与数据集不包含在归档中。
+
+## DELIVERY-02：ARM64 A100 CUDA 12.6 离线交付（2026-10-28）
+
+状态：PARTIAL（正在构建，GPU 训练 NOT RUN）。
+
+- [x] 已读取公开 AMD64 镜像内配置确认 linux/amd64；新增 docker-images/ 下载目录。
+- [x] 依据用户截图新增 ARM64/CUDA12.6 Dockerfile、原生 ARM CI、单 A100 配置与启动器。
+- [x] 官方不存在指定 2.8.0 ARM64 CUDA12.6 wheel，采用 2.9.1；决策见 ADR-0003。
+- [x] 下载、校验、导入、自己的数据准备及微调说明。
+- [ ] ARM64 镜像实际构建、离线 CPU 测试与 GitHub Release 下载校验。
+- [ ] 目标麒麟 ARM64 + A100 真实 GPU 前向、短跑与训练效果。
