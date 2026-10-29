@@ -1,0 +1,38 @@
+[
+  {
+    "package": "gcc-12-base",
+    "version": "12.2.0-14+deb12u1",
+    "architecture": "arm64",
+    "url": "https://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12-base_12.2.0-14+deb12u1_arm64.deb",
+    "sha256": "674cf6cba6d432bd200c45fe866c1652c7a53523cc2e7a613e05bc4abf7b5440",
+    "bytes": 37624,
+    "depends": null
+  },
+  {
+    "package": "libgcc-s1",
+    "version": "12.2.0-14+deb12u1",
+    "architecture": "arm64",
+    "url": "https://deb.debian.org/debian/pool/main/g/gcc-12/libgcc-s1_12.2.0-14+deb12u1_arm64.deb",
+    "sha256": "576926b283613db80168ddf76380a3bd877602778cf0d226caa7bfbfa71eacf3",
+    "bytes": 34816,
+    "depends": "gcc-12-base (= 12.2.0-14+deb12u1), libc6 (>= 2.35)"
+  },
+  {
+    "package": "libstdc++6",
+    "version": "12.2.0-14+deb12u1",
+    "architecture": "arm64",
+    "url": "https://deb.debian.org/debian/pool/main/g/gcc-12/libstdc++6_12.2.0-14+deb12u1_arm64.deb",
+    "sha256": "26e138c677a985775331373828a6c286c551ff397cb735d00e2383cb273d1cb2",
+    "bytes": 556608,
+    "depends": "gcc-12-base (= 12.2.0-14+deb12u1), libc6 (>= 2.36), libgcc-s1 (>= 4.5)"
+  },
+  {
+    "package": "unrar",
+    "version": "1:6.2.6-1+deb12u1",
+    "architecture": "arm64",
+    "url": "https://deb.debian.org/debian/pool/non-free/u/unrar-nonfree/unrar_6.2.6-1+deb12u1_arm64.deb",
+    "sha256": "c0909ff895c047346dde0659e430df3f2165ce50897e420fbab30e91d5cebed9",
+    "bytes": 133800,
+    "depends": "libc6 (>= 2.34), libgcc-s1 (>= 3.3.1), libstdc++6 (>= 11)"
+  }
+]
