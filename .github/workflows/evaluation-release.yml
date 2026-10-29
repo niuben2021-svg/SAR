@@ -1,0 +1,63 @@
+name: Test and publish batch evaluation kit
+on:
+  push:
+    branches: [delivery/evaluation-20261029]
+    paths-ignore: ['reports/**', 'TASKS.md']
+permissions:
+  contents: write
+concurrency:
+  group: sar-evaluation-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: sar-evaluation-20261029
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Load the previously delivered ARM64 image without rebuilding
+        run: |
+          mkdir -p /tmp/sar-eval-image
+          gh release download qwen3vl4b-arm64-cu126-20261028 --repo "$GITHUB_REPOSITORY" --pattern 'sar-vlm-qwen3vl4b-arm64-cu126.tar.gz.part*' --dir /tmp/sar-eval-image
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          digest=hashlib.sha256()
+          for p in sorted(Path('/tmp/sar-eval-image').glob('*.part*')):
+              with p.open('rb') as f:
+                  for block in iter(lambda: f.read(8*1024*1024), b''): digest.update(block)
+          assert digest.hexdigest() == 'e9f0b5c459ce7f773396fd8095f3d547b2e1c9a2e17a2c113ef494fa8f80530e'
+          PY
+          cat /tmp/sar-eval-image/*.part* | gzip -dc | docker load
+          rm /tmp/sar-eval-image/*.part*
+      - name: Run existing and new tests inside the offline ARM64 image
+        run: |
+          mkdir -p /tmp/sar-eval/model /tmp/sar-eval/data /tmp/sar-eval/output release-assets
+          bash scripts/offline/run_arm64.sh /tmp/sar-eval/model /tmp/sar-eval/data /tmp/sar-eval/output cpu 2>&1 | tee release-assets/arm64-cpu-tests.log
+          bash scripts/offline/run_arm64.sh /tmp/sar-eval/model /tmp/sar-eval/data /tmp/sar-eval/output shell -c 'python scripts/offline/eval_demo.py --output /outputs/demo'
+          bash scripts/offline/run_arm64.sh /tmp/sar-eval/model /tmp/sar-eval/data /tmp/sar-eval/output evaluate score --manifest /outputs/demo/samples.jsonl --protocol /outputs/demo/protocol.json --predictions /outputs/demo/predictions.jsonl --task all --allow-fixtures --output /outputs/demo-result
+          python - <<'PY'
+          import json
+          r=json.load(open('/tmp/sar-eval/output/demo-result/metrics.json'))
+          assert r['classification']['accuracy']==.5
+          assert r['detection']['AP50']==.5
+          assert r['scientific_result'] is False
+          PY
+          cp /tmp/sar-eval/output/demo-result/metrics.json release-assets/engineering-fixture-metrics.json
+      - name: Package complete code and guide
+        run: |
+          git archive --format=tar.gz --prefix=sar-vlm/ HEAD > release-assets/sar-vlm-evaluation-source.tar.gz
+          git archive --format=zip --prefix=sar-vlm/ HEAD > release-assets/sar-vlm-evaluation-source.zip
+          cp evaluation-kit/README.md release-assets/EVALUATION-GUIDE.md
+          cd release-assets
+          sha256sum * > /tmp/sar-eval-checksums
+          mv /tmp/sar-eval-checksums SHA256SUMS
+      - name: Publish downloadable files
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title 'SAR batch inference and evaluation kit' --notes-file release-assets/EVALUATION-GUIDE.md
+          fi
+          gh release upload "$TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft=false --notes-file release-assets/EVALUATION-GUIDE.md

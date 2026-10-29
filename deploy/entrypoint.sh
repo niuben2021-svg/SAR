@@ -7,6 +7,7 @@ case "$mode" in
   help)
     cat <<'HELP'
 SAR-VLM offline container commands:
+  evaluate            Batch infer/score/prepare; use evaluate --help
   cpu                 CPU data smoke + tests; no model directory required
   verify-model        Verify /models/qwen3vl4b transfer hashes and required files
   check               GPU + local model layout preflight (add --no-gpu for CPU inspection)
@@ -21,6 +22,7 @@ SAR-VLM offline container commands:
 Use --network none for inner-network validation. Weights/data are external mounts.
 HELP
     ;;
+  evaluate) exec python -m sar_vlm.evaluation.cli "$@" ;;
   cpu)
     python -m sar_vlm.cli.smoke_data --config configs/cpu.yaml
     exec python -m pytest -q -o cache_dir=/outputs/pytest-cache -m 'not gpu' "$@"

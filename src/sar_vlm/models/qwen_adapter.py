@@ -33,9 +33,10 @@ def require_device(device: str) -> None:
 class QwenAdapter:
     """Single-device pretrained Qwen3-VL-4B/8B generation, never a detector substitute."""
 
-    def __init__(self, config: MVPConfig) -> None:
+    def __init__(self, config: MVPConfig, adapter_path: Path | None = None) -> None:
         """Store config without allocating weights or touching the network."""
         self.config = config
+        self.adapter_path = adapter_path
         self.model = None
         self.processor = None
         self.load_seconds: float | None = None
@@ -74,6 +75,16 @@ class QwenAdapter:
             .to(cfg.device)
             .eval()
         )
+        if self.adapter_path is not None:
+            from peft import PeftModel
+
+            adapter_path = self.adapter_path.resolve(strict=True)
+            adapter_config = json.loads((adapter_path / "adapter_config.json").read_text())
+            if adapter_config.get("peft_type") != "LORA":
+                raise ValueError("evaluation supports PEFT LoRA adapter checkpoints only")
+            self.model = PeftModel.from_pretrained(
+                self.model, str(adapter_path), is_trainable=False, local_files_only=True
+            ).eval()
         if cfg.device.startswith("cuda:"):
             torch.cuda.synchronize(cfg.device)
         self.load_seconds = time.perf_counter() - start

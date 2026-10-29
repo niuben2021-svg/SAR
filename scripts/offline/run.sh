@@ -15,6 +15,9 @@ mode="$1"
 # Only commands that need GPUs request NVIDIA runtime; CPU/transfer checks work without it.
 gpu_args=()
 case "$mode" in check|forward|train-smoke|train) gpu_args=(--gpus "${SAR_GPUS:-all}");; esac
+if [[ "$mode" == evaluate && "${2:-}" == infer ]]; then
+  gpu_args=(--gpus "${SAR_GPUS:-all}")
+fi
 if [[ "$mode" == shell && "${SAR_SHELL_GPU:-0}" == 1 ]]; then
   gpu_args=(--gpus "${SAR_GPUS:-all}")
 fi

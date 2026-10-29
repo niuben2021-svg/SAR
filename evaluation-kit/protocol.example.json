@@ -1,0 +1,10 @@
+{
+  "classes": ["飞机", "车辆", "舰船"],
+  "attribute_values": {
+    "阴影": ["明显", "不明显"],
+    "散射分布": ["集中", "分散"]
+  },
+  "score_threshold": 0.0,
+  "detection_iou": 0.5,
+  "max_detections": 100
+}
