@@ -1,0 +1,57 @@
+{
+  "task": "EVAL-01",
+  "delivery": "DONE",
+  "gpu_model_inference": "NOT RUN",
+  "workflow": 40810535194,
+  "release_url": "https://github.com/niuben2021-svg/SAR/releases/tag/sar-evaluation-20261029",
+  "assets": [
+    {
+      "name": "arm64-cpu-tests.log",
+      "size": 754,
+      "digest": "sha256:fdef8a97b381dd97a59706eb53eb084896406bc28887820151709a84066fc4d3",
+      "url": "https://github.com/niuben2021-svg/SAR/releases/download/sar-evaluation-20261029/arm64-cpu-tests.log",
+      "download_verified": true
+    },
+    {
+      "name": "engineering-fixture-metrics.json",
+      "size": 7788,
+      "digest": "sha256:eaf535098b0efef03ef8ea182776d159de80d16c178fa7b6a1e9e158eed7a38c",
+      "url": "https://github.com/niuben2021-svg/SAR/releases/download/sar-evaluation-20261029/engineering-fixture-metrics.json",
+      "download_verified": true
+    },
+    {
+      "name": "EVALUATION-GUIDE.md",
+      "size": 15048,
+      "digest": "sha256:bc37c289698582273afb2e4bade2af6b7b74c340afb46eb464c0965c9039e523",
+      "url": "https://github.com/niuben2021-svg/SAR/releases/download/sar-evaluation-20261029/EVALUATION-GUIDE.md",
+      "download_verified": true
+    },
+    {
+      "name": "sar-vlm-evaluation-source.tar.gz",
+      "size": 266624,
+      "digest": "sha256:5decfa538991dcc663fa0590154f1ad1b001c9f043d55fa1ce090edeeecc7d8a",
+      "url": "https://github.com/niuben2021-svg/SAR/releases/download/sar-evaluation-20261029/sar-vlm-evaluation-source.tar.gz",
+      "download_verified": true
+    },
+    {
+      "name": "sar-vlm-evaluation-source.zip",
+      "size": 315622,
+      "digest": "sha256:91fa8bc9f28645e69f675a2dd78add4c33cb6b6fcb03a0eac818ef3fddfd4fbb",
+      "url": "https://github.com/niuben2021-svg/SAR/releases/download/sar-evaluation-20261029/sar-vlm-evaluation-source.zip",
+      "download_verified": true
+    },
+    {
+      "name": "SHA256SUMS",
+      "size": 466,
+      "digest": "sha256:31ed40384a560d6d8f76ae98931eceda8d74194684294e79b8bfba9257a23f90",
+      "url": "https://github.com/niuben2021-svg/SAR/releases/download/sar-evaluation-20261029/SHA256SUMS",
+      "download_verified": true
+    }
+  ],
+  "tests": {
+    "host_cpu": 80,
+    "amd64_container_cpu": 80,
+    "arm64_container_cpu": 80,
+    "gpu_deselected": 1
+  }
+}
