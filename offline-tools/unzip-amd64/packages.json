@@ -1,0 +1,20 @@
+[
+  {
+    "package": "libbz2-1.0",
+    "version": "1.0.8-5+b1",
+    "architecture": "amd64",
+    "url": "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-5+b1_amd64.deb",
+    "sha256": "54149da3f44b22d523b26b692033b84503d822cc5122fed606ea69cc83ca5aeb",
+    "bytes": 47348,
+    "depends": "libc6 (>= 2.4)"
+  },
+  {
+    "package": "unzip",
+    "version": "6.0-28",
+    "architecture": "amd64",
+    "url": "https://deb.debian.org/debian/pool/main/u/unzip/unzip_6.0-28_amd64.deb",
+    "sha256": "b3d9529c34382cc8d2e6cc8299a18536504edbc284b9133ffbe522704865068e",
+    "bytes": 166496,
+    "depends": "libbz2-1.0, libc6 (>= 2.34)"
+  }
+]
