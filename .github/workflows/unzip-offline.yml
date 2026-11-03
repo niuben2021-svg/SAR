@@ -1,0 +1,37 @@
+name: Verify and publish ARM64 unzip offline bundle
+on:
+  push:
+    branches: [delivery/unzip-arm64-20261103]
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: ubuntu-24.04-arm
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: unzip-arm64-bookworm-20261103
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Offline install and actual extraction in disposable Debian12 ARM64 container
+        run: |
+          mkdir -p release-assets
+          docker pull --platform linux/arm64 python:3.11-slim-bookworm
+          docker run --rm --network none --platform linux/arm64 -v "$PWD/offline-tools/unzip-arm64:/bundle:ro" python:3.11-slim-bookworm bash -c 'bash /bundle/install.sh && unzip -t /bundle/test.zip && mkdir /tmp/unzip-smoke && unzip -n /bundle/test.zip -d /tmp/unzip-smoke/ && cmp /bundle/test.txt /tmp/unzip-smoke/test.txt' 2>&1 | tee release-assets/offline-install-test.log
+      - name: Package original Debian binaries and installation instructions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          root=Path('offline-tools/unzip-arm64')
+          with ZipFile('release-assets/sar-unzip-bookworm-arm64-offline.zip','w',ZIP_DEFLATED) as z:
+              for p in sorted(root.rglob('*')):
+                  if p.is_file():z.write(p,Path('unzip-arm64')/p.relative_to(root))
+          PY
+          tar -czf release-assets/sar-unzip-bookworm-arm64-offline.tar.gz -C offline-tools unzip-arm64
+          cp offline-tools/unzip-arm64/README.md release-assets/INSTALL.md
+          cd release-assets
+          sha256sum * > /tmp/unzip-checksums
+          mv /tmp/unzip-checksums SHA256SUMS
+      - name: Publish download
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title 'ARM64 Debian 12 unzip offline installer' --notes-file release-assets/INSTALL.md release-assets/*
