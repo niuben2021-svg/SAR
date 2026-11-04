@@ -1,0 +1,14 @@
+name: Offline GLM coding
+version: 1.0.0
+schema: v1
+models:
+  - name: GLM private endpoint
+    provider: openai
+    model: REPLACE_WITH_SERVED_MODEL_ID
+    apiBase: http://REPLACE_GLM_NODE_IP:8000/v1
+    apiKey: REPLACE_LOCALLY_WITH_KEY_OR_EMPTY
+    roles: [chat, edit, apply]
+    capabilities: [tool_use]
+    defaultCompletionOptions:
+      temperature: 0.2
+      maxTokens: 4096

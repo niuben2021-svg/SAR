@@ -1,0 +1,17 @@
+# Merge into Windows %USERPROFILE%\.ssh\config; replace all placeholders.
+Host sar-dev
+    HostName REPLACE_DEV_NODE_IP
+    User REPLACE_SSH_USERNAME
+    Port 22
+    IdentityFile ~/.ssh/id_ed25519
+    ServerAliveInterval 30
+    ServerAliveCountMax 6
+
+# If access requires a login/jump node, add a separate alias and uncomment ProxyJump:
+# Host sar-login
+#     HostName REPLACE_LOGIN_NODE_IP
+#     User REPLACE_SSH_USERNAME
+#     IdentityFile ~/.ssh/id_ed25519
+#
+# Add under Host sar-dev:
+#     ProxyJump sar-login

@@ -1,0 +1,8 @@
+{
+  "remote.SSH.useExecServer": false,
+  "remote.SSH.localServerDownload": "never",
+  "remote.extensionKind": { "Continue.continue": ["workspace"] },
+  "extensions.autoUpdate": false,
+  "extensions.autoCheckUpdates": false,
+  "update.mode": "none"
+}

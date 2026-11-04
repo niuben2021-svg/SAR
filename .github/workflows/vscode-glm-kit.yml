@@ -1,0 +1,77 @@
+name: Verify VS Code offline downloads and GLM configuration kit
+on:
+  push:
+    branches: [delivery/vscode-glm-20261104]
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Windows download script and verify Microsoft signature
+        shell: pwsh
+        run: |
+          & ./vscode-glm-kit/scripts/download-windows.ps1 -OutputDirectory "$env:RUNNER_TEMP/SAR-VSCode-Offline"
+          $exe = Get-ChildItem "$env:RUNNER_TEMP/SAR-VSCode-Offline/VSCodeUserSetup-*.exe" | Select-Object -First 1
+          $signature = Get-AuthenticodeSignature $exe.FullName
+          if ($signature.Status -ne 'Valid') { throw "Installer Authenticode is not Valid: $($signature.Status)" }
+          New-Item -ItemType Directory -Force results | Out-Null
+          "Windows download script: PASS`nAll 6 binary SHA256: PASS`nAuthenticode: $($signature.Status)`nSigner: $($signature.SignerCertificate.Subject)`nGUI installation and real SSH/GLM: NOT RUN" | Set-Content results/windows-validation.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-validation
+          path: results/
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test API probe and pinned Linux server
+        run: |
+          mkdir -p results
+          python vscode-glm-kit/scripts/test_api_probe.py 2>&1 | tee results/api-probe-tests.txt
+          python - <<'PY'
+          import json,urllib.request,hashlib
+          from pathlib import Path
+          m=json.load(open('vscode-glm-kit/downloads.json'))
+          item=next(x for x in m['files'] if x['name'].startswith('vscode-server'))
+          data=urllib.request.urlopen(item['url'],timeout=120).read()
+          assert hashlib.sha256(data).hexdigest()==item['sha256']
+          Path('/tmp/server.tar.gz').write_bytes(data)
+          PY
+          bash vscode-glm-kit/scripts/install_server.sh /tmp/server.tar.gz 2>&1 | tee results/linux-server-validation.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-validation
+          path: results/
+  publish:
+    needs: [windows, linux]
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: vscode-glm-kit-20261104
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: validation
+      - name: Package configuration and instructions
+        run: |
+          mkdir release-assets
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          with ZipFile('release-assets/vscode-glm-offline-setup-kit.zip','w',ZIP_DEFLATED) as z:
+              for p in sorted(Path('vscode-glm-kit').rglob('*')):
+                  if p.is_file() and '__pycache__' not in p.parts:z.write(p,p)
+              for p in sorted(Path('validation').rglob('*.txt')):z.write(p,Path('vscode-glm-kit/validation')/p.name)
+          PY
+          cp vscode-glm-kit/README.md release-assets/INSTALL.md
+          cp vscode-glm-kit/downloads.json release-assets/downloads.json
+          find validation -name '*.txt' -exec cp {} release-assets/ \;
+          cd release-assets
+          sha256sum * > /tmp/vscode-kit-sums
+          mv /tmp/vscode-kit-sums SHA256SUMS
+      - name: Publish small setup kit; binaries download from original vendors
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title 'Windows VS Code SSH and offline GLM coding setup' --notes-file release-assets/INSTALL.md release-assets/*
