@@ -1,0 +1,49 @@
+name: Publish complete VS Code GLM offline bundle
+on:
+  push:
+    branches: [delivery/vscode-full-offline-20261104]
+permissions:
+  contents: write
+jobs:
+  full-bundle:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: vscode-glm-full-offline-20261104
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify every binary
+        shell: pwsh
+        run: |
+          Copy-Item vscode-glm-full-kit/downloads.json vscode-glm-kit/downloads.json -Force
+          & ./vscode-glm-kit/scripts/download-windows.ps1 -OutputDirectory "$env:RUNNER_TEMP/SAR-VSCode-Offline"
+          $root = "$env:RUNNER_TEMP/SAR-VSCode-Offline"
+          New-Item -ItemType Directory -Force "$root/validation" | Out-Null
+          $exe = Get-ChildItem "$root/VSCodeUserSetup-*.exe" | Select-Object -First 1
+          $signature = Get-AuthenticodeSignature $exe.FullName
+          if ($signature.Status -ne 'Valid') { throw 'Microsoft signature verification failed' }
+          Expand-Archive "$root/OpenSSH-Win64.zip" -DestinationPath "$env:RUNNER_TEMP/ssh-test"
+          $sshVersion = & "$env:RUNNER_TEMP/ssh-test/OpenSSH-Win64/ssh.exe" -V 2>&1
+          if ($LASTEXITCODE -ne 0) { throw 'Fallback SSH version check failed' }
+          "All 7 binary SHA256: PASS`nVSCode Microsoft Authenticode: $($signature.Status)`nSSH version: $sshVersion`nReal user GUI/SSH/GLM integration: NOT RUN" | Set-Content "$root/validation/windows-validation.txt"
+          python vscode-glm-kit/scripts/test_api_probe.py 2>&1 | Tee-Object "$root/validation/api-probe-tests.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'API probe unit tests failed' }
+          gh release download vscode-glm-kit-20261104 --repo "$env:GITHUB_REPOSITORY" --pattern linux-server-validation.txt --dir "$root/validation"
+          if ($LASTEXITCODE -ne 0) { throw 'Previous pinned server validation log unavailable' }
+      - name: Build and verify complete offline ZIP
+        shell: pwsh
+        run: |
+          python vscode-glm-full-kit/package_bundle.py --root "$env:RUNNER_TEMP/SAR-VSCode-Offline" --output release-assets/SAR-VSCode-GLM-Full-Offline-WinX64.zip
+          if ($LASTEXITCODE -ne 0) { throw 'Bundle packaging failed' }
+          Copy-Item vscode-glm-full-kit/START-HERE.zh-CN.md release-assets/INSTALL.md
+          Copy-Item vscode-glm-full-kit/downloads.json release-assets/downloads.json
+          Copy-Item "$env:RUNNER_TEMP/SAR-VSCode-Offline/validation/windows-validation.txt" release-assets/
+          $lines = Get-ChildItem release-assets -File | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
+          $lines | Set-Content -Encoding ascii release-assets/SHA256SUMS
+      - name: Publish full bundle
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem release-assets -File | ForEach-Object { $_.FullName }
+          gh release create "$env:TAG" --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title 'Complete offline VS Code SSH and private GLM coding bundle' --notes-file release-assets/INSTALL.md @assets
+          if ($LASTEXITCODE -ne 0) { throw 'Release publishing failed' }
