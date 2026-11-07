@@ -1,0 +1,54 @@
+name: Build Swin-T RTX4090 CUDA121 offline image
+on:
+  push:
+    branches: [delivery/swint-rtx4090-cu121-20261107]
+    paths: ['.github/workflows/swint-rtx4090-release.yml', 'scripts/release/rtx4090/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: swint-rtx4090-cu121-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      IMAGE: sar-swin-p1:rtx4090-cu121
+      BASE: pytorch/pytorch:2.3.1-cuda12.1-cudnn8-runtime
+      TAG: sar-swint-rtx4090-cu121-20261107
+      NAME: SAR_SwinT_RTX4090_CUDA121_Image.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare disposable runner
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache
+          mkdir -p release-assets
+          uname -m
+          df -h /
+      - name: Download verified official weights and build AMD64 image
+        run: bash scripts/release/rtx4090/build.sh
+      - name: Validate dependencies and model with network disabled
+        run: |
+          set -o pipefail
+          docker run --rm --network none "$IMAGE" python -m pip check | tee release-assets/pip-check.log
+          docker run --rm -i --network none "$IMAGE" python - < scripts/release/rtx4090/check_cpu.py 2>&1 | tee release-assets/offline-cpu-check.log
+          docker run --rm --network none "$IMAGE" python -m pip freeze > release-assets/requirements-actual.txt
+      - name: Export full image and test offline reimport
+        run: bash scripts/release/rtx4090/export.sh
+      - name: Publish complete image and import toolkit
+        run: |
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title 'SAR Swin-T RTX4090 CUDA 12.1 完整离线镜像' --notes-file release-assets/IMPORT.md
+          gh release upload "$TAG" release-assets/*
+          gh release edit "$TAG" --draft=false
+      - name: Preserve diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtx4090-cu121-build-diagnostics
+          path: |
+            release-assets/*.log
+            release-assets/*.json
+            release-assets/*.txt
+          if-no-files-found: ignore
