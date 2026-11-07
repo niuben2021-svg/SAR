@@ -1,0 +1,2 @@
+# This Docker image pins all runtime deps. Do not run pip -U torch/torchvision inside the container.
+# PyTorch 2.3.1 + cu121 / torchvision 0.18.1+cu121 / numpy 1.26.4 / Pillow 10.4.0
