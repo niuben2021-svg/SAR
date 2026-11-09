@@ -1,0 +1,48 @@
+name: Verify and publish Matplotlib Python310 offline package
+on:
+  push:
+    branches: [delivery/matplotlib-py310-offline-20261110]
+    paths: ['scripts/matplotlib-offline/**', '.github/workflows/matplotlib-offline.yml']
+permissions:
+  contents: write
+concurrency:
+  group: matplotlib-py310-offline
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: matplotlib-py310-linux-x86_64-offline-20261110
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Download and verify exact tested wheels
+        working-directory: scripts/matplotlib-offline
+        run: |
+          bash build_on_internet_linux.sh
+          cd matplotlib_py310_linux_x86_64_offline/wheels
+          sha256sum -c ../../EXPECTED-WHEELS.sha256
+      - name: Verify offline installation and plotting
+        working-directory: scripts/matplotlib-offline
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/mpl-test"
+          PYTHON_FOR_INSTALL="$RUNNER_TEMP/mpl-test/bin/python" PIP_NO_INDEX=1 bash matplotlib_py310_linux_x86_64_offline/install.sh 2>&1 | tee offline-validation.log
+          "$RUNNER_TEMP/mpl-test/bin/python" -m pip check | tee -a offline-validation.log
+          mkdir -p matplotlib_py310_linux_x86_64_offline/validation
+          mv matplotlib_py310_linux_x86_64_offline/matplotlib_offline_test.png matplotlib_py310_linux_x86_64_offline/validation/
+          cp offline-validation.log matplotlib_py310_linux_x86_64_offline/validation/
+          tar -czf matplotlib_py310_linux_x86_64_offline.tar.gz matplotlib_py310_linux_x86_64_offline
+          sha256sum matplotlib_py310_linux_x86_64_offline.tar.gz > matplotlib_py310_linux_x86_64_offline.tar.gz.sha256
+      - name: Upload complete tested archive
+        working-directory: scripts/matplotlib-offline
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title 'Matplotlib 3.8.4 Python3.10 x86_64 完整离线安装包' --notes-file RELEASE.md
+          fi
+          gh release upload "$TAG" matplotlib_py310_linux_x86_64_offline.tar.gz matplotlib_py310_linux_x86_64_offline.tar.gz.sha256 --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --notes-file RELEASE.md
