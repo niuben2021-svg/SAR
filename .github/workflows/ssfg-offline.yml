@@ -1,0 +1,41 @@
+name: Verify and publish SSFG offline dependencies
+on:
+  push:
+    branches: [delivery/ssfg-py310-offline-20261110]
+    paths: ['scripts/ssfg-offline/**', '.github/workflows/ssfg-offline.yml']
+permissions:
+  contents: write
+concurrency:
+  group: ssfg-py310-offline
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ssfg-py310-linux-x86_64-offline-20261110
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Download all binary dependencies
+        working-directory: scripts/ssfg-offline
+        run: |
+          python -m pip download --only-binary=:all: --platform manylinux2014_x86_64 --python-version 310 --implementation cp --abi cp310 --abi abi3 --abi none --dest wheels -r requirements.lock
+      - name: Verify offline installation and scientific operations
+        working-directory: scripts/ssfg-offline
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/ssfg-test"
+          "$RUNNER_TEMP/ssfg-test/bin/python" -m pip install --no-index --find-links wheels -r requirements.lock 2>&1 | tee offline-tests.log
+          "$RUNNER_TEMP/ssfg-test/bin/python" -m pip check | tee -a offline-tests.log
+          "$RUNNER_TEMP/ssfg-test/bin/python" check_cpu.py | tee -a offline-tests.log
+          python package.py
+      - name: Publish complete offline ZIP
+        working-directory: scripts/ssfg-offline
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" --title 'SSFG Python3.10 x86_64 完整离线依赖包' --notes-file INSTALL.md
+          gh release upload "$TAG" ssfg_full_offline_wheels.zip ssfg_full_offline_wheels.zip.sha256 offline-tests.log --repo "$GITHUB_REPOSITORY"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
