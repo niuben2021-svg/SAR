@@ -8,7 +8,7 @@ from mmdet.models import build_detector
 
 torch.set_num_threads(2)
 c = Config.fromfile('configs/sar/swin_t_rotated_faster_rcnn_sar.py')
-m = build_detector(c.model, train_cfg=c.model.get('train_cfg'), test_cfg=c.model.get('test_cfg'))
+m = build_detector(c.model)
 m.init_weights()
 o = build_optimizer(m, c.optimizer)
 assert isinstance(o, torch.optim.AdamW)

@@ -7,7 +7,7 @@ from mmcv.ops import nms_rotated, box_iou_rotated
 from mmcv import Config
 from mmdet.models import build_detector
 c=Config.fromfile('configs/sar/swin_t_rotated_faster_rcnn_sar.py')
-m=build_detector(c.model, train_cfg=c.model.get('train_cfg'), test_cfg=c.model.get('test_cfg'))
+m=build_detector(c.model)
 print('VERSIONS',torch.__version__,mmcv.__version__,mmdet.__version__,mmrotate.__version__)
 print('MODEL BUILD PASS',type(m).__name__)
 if torch.cuda.is_available():

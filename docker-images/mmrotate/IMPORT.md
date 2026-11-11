@@ -22,6 +22,6 @@ docker run --rm --gpus all --network none --shm-size=16g \
 
 模型沿用附件默认的随机 Swin-T 初始化，不含 SAR 数据或已训练 SAR 权重。若使用预训练权重，需挂载兼容的 MMDetection Swin-T checkpoint 并设置 SWIN_CKPT 为容器路径，不能随意使用 TorchVision 格式。
 
-必要兼容修正：AdamW 配置添加 `_delete_=True`，清除基础 SGD 的 momentum；依赖增加约束，避免 NumPy2 或不兼容的新 OpenCV 被自动引入。其余配置和训练脚本随构建源码附件提供。
+必要兼容修正：AdamW 配置添加 `_delete_=True`，清除基础 SGD 的 momentum；依赖增加约束，避免 NumPy2 或不兼容的新 OpenCV 被自动引入。验证脚本另修正了重复传入 train_cfg/test_cfg 的调用。其余配置和训练脚本随构建源码附件提供。
 
 发布前在无GPU runner 中验证 pip check、断网配置解析、模型初始化、AdamW 创建、旋转框 CPU IoU/NMS、镜像导出后重新导入。GPU检查、四卡训练、真实数据精度与峰值显存尚未实测；须在内网验收。
