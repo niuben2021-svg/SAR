@@ -1,0 +1,41 @@
+name: Build and verify cv2 Python311 offline package
+on:
+  push:
+    branches: [delivery/cv2-py311-offline-20261111]
+    paths: ['scripts/cv2-py311/**', '.github/workflows/cv2-py311-offline.yml']
+permissions:
+  contents: write
+concurrency:
+  group: cv2-py311-offline
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: cv2-4.11.0.86-numpy1.26.4-py311-offline-20261111
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download exact CPython311 compatible wheels
+        working-directory: scripts/cv2-py311
+        run: |
+          python -m pip download --only-binary=:all: --platform manylinux2014_x86_64 --python-version 3.11 --implementation cp --abi cp311 --abi abi3 --abi none -d wheels -r requirements.txt
+          (cd wheels && sha256sum *.whl | sed 's|  |  wheels/|') > SHA256SUMS
+      - name: Test actual offline installer and cv2 operations
+        working-directory: scripts/cv2-py311
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/cv2-test"
+          PYTHON_BIN="$RUNNER_TEMP/cv2-test/bin/python" PIP_NO_INDEX=1 bash install.sh 2>&1 | tee offline-tests.log
+          "$RUNNER_TEMP/cv2-test/bin/python" -m pip check | tee -a offline-tests.log
+          python package.py
+      - name: Publish ZIP, checksum and validation log
+        working-directory: scripts/cv2-py311
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" --title 'cv2 OpenCV4.11 Python3.11 x86_64 完整离线安装包' --notes-file INSTALL.md
+          gh release upload "$TAG" *.zip *.zip.sha256 offline-tests.log --repo "$GITHUB_REPOSITORY"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
