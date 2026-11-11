@@ -1,5 +1,6 @@
 """Offline engineering checks, without claiming GPU or SAR accuracy."""
 import torch
+import mmrotate  # register rotated detector/backbone components before build_detector
 from mmcv import Config
 from mmcv.runner import build_optimizer
 from mmcv.ops import box_iou_rotated, nms_rotated
