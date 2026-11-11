@@ -43,7 +43,7 @@ print('MMCV wheel:',xs)
 PY
 INNER
 chmod +x build_wheels_in_container.sh
-docker run --rm -v "$ROOT:/build" -w /build "$BASE_IMAGE" bash /build/build_wheels_in_container.sh
+docker run --rm --network host -v "$ROOT:/build" -w /build "$BASE_IMAGE" bash /build/build_wheels_in_container.sh
 # preserve the original base; build a NEW derivative image using the offline local wheelhouse.
 docker build --build-arg BASE_IMAGE="$BASE_IMAGE" -t cvmt:cu118 -f Dockerfile .
 echo 'Built image: cvmt:cu118'

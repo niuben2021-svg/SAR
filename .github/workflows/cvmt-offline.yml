@@ -21,7 +21,7 @@ jobs:
           mkdir -p release-assets
           git clone https://github.com/RSIP-NJUPT/CVMT.git docker-images/cvmt/CVMT
           git -C docker-images/cvmt/CVMT checkout a75079317972ecffb86a0b2cedfe7258d2dce2e1
-          docker build -f docker-images/cvmt/Base.Dockerfile -t "$BASE_IMAGE" docker-images/cvmt
+          docker build --network host -f docker-images/cvmt/Base.Dockerfile -t "$BASE_IMAGE" docker-images/cvmt
       - name: Download all wheels and build offline derivative
         run: |
           set -o pipefail
