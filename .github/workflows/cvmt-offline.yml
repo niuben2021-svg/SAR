@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 150
     env:
       GH_TOKEN: ${{ github.token }}
-      BASE_IMAGE: pytorch/pytorch:2.0.1-cuda11.8-cudnn8-runtime
+      BASE_IMAGE: cvmt-base:cu118
       TAG: cvmt-cu118-amd64-20261111
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
           mkdir -p release-assets
           git clone https://github.com/RSIP-NJUPT/CVMT.git docker-images/cvmt/CVMT
           git -C docker-images/cvmt/CVMT checkout a75079317972ecffb86a0b2cedfe7258d2dce2e1
-          docker pull "$BASE_IMAGE"
+          docker build -f docker-images/cvmt/Base.Dockerfile -t "$BASE_IMAGE" docker-images/cvmt
       - name: Download all wheels and build offline derivative
         run: |
           set -o pipefail
