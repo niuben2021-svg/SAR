@@ -1,0 +1,49 @@
+name: Download and verify CVMT incremental offline packages
+on:
+  push:
+    branches: [delivery/cvmt-cu118-20261111]
+    paths: ['scripts/cvmt-upgrade/**', '.github/workflows/cvmt-upgrade.yml']
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: cvmt-incremental-py310-cu118-20261112
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Download full dependency closure and retain incremental wheels
+        working-directory: scripts/cvmt-upgrade
+        run: |
+          python -m pip download --only-binary=:all: -c constraints.txt --extra-index-url https://download.pytorch.org/whl/cu118 --find-links https://download.openmmlab.com/mmcv/dist/cu118/torch2.0/index.html -d wheels -r requirements.txt
+          rm -f wheels/torch-*.whl wheels/torchvision-*.whl wheels/triton-*.whl wheels/nvidia_*.whl
+          git clone https://github.com/RSIP-NJUPT/CVMT.git CVMT
+          git -C CVMT checkout a75079317972ecffb86a0b2cedfe7258d2dce2e1
+          rm -rf CVMT/.git
+          sha256sum wheels/* > SHA256SUMS
+      - name: Validate incremental upgrade on matching Torch
+        working-directory: scripts/cvmt-upgrade
+        run: |
+          set -o pipefail
+          python -m venv /tmp/cvmt-check
+          /tmp/cvmt-check/bin/python -m pip install torch==2.0.1 torchvision==0.15.2 --index-url https://download.pytorch.org/whl/cu118
+          PYTHON_BIN=/tmp/cvmt-check/bin/python bash install.sh 2>&1 | tee validation.log
+          /tmp/cvmt-check/bin/python -m pip check | tee -a validation.log
+      - name: Package and publish wheels, source and instructions
+        working-directory: scripts/cvmt-upgrade
+        run: |
+          zip -q -r cvmt_upgrade_py310_cu118.zip wheels CVMT requirements.txt constraints.txt SHA256SUMS install.sh verify_local.py README.md validation.log
+          sha256sum cvmt_upgrade_py310_cu118.zip > cvmt_upgrade_py310_cu118.zip.sha256
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" --title 'CVMT 原环境增量升级离线包（非镜像）' --notes-file README.md
+          gh release upload "$TAG" cvmt_upgrade_py310_cu118.zip cvmt_upgrade_py310_cu118.zip.sha256 README.md validation.log --repo "$GITHUB_REPOSITORY"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cvmt-upgrade-diagnostics
+          path: scripts/cvmt-upgrade/validation.log
