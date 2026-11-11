@@ -31,7 +31,8 @@ jobs:
         run: |
           set -o pipefail
           python -m venv /tmp/cvmt-check
-          /tmp/cvmt-check/bin/python -m pip install torch==2.0.1 torchvision==0.15.2 --index-url https://download.pytorch.org/whl/cu118
+          /tmp/cvmt-check/bin/python -m pip install -U pip
+          /tmp/cvmt-check/bin/python -m pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
           PYTHON_BIN=/tmp/cvmt-check/bin/python bash install.sh 2>&1 | tee validation.log
           /tmp/cvmt-check/bin/python -m pip check | tee -a validation.log
       - name: Package and publish wheels, source and instructions
