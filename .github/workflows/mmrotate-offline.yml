@@ -1,0 +1,57 @@
+name: Build MMRotate CUDA118 offline image
+on:
+  push:
+    branches: [delivery/mmrotate-cu118-20261111]
+    paths: ['docker-images/mmrotate/**', '.github/workflows/mmrotate-offline.yml']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      IMAGE: sar-mmrotate:swin-t-rfrcnn-v1
+      TAG: sar-mmrotate-swin-t-cu118-amd64-20261111
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare disposable runner
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache
+          mkdir -p release-assets
+      - name: Build full CUDA environment
+        run: |
+          set -o pipefail
+          docker build --platform linux/amd64 -t "$IMAGE" docker-images/mmrotate 2>&1 | tee release-assets/build.log
+      - name: Validate offline model and CPU rotated operators
+        run: |
+          set -o pipefail
+          docker run --rm --network none "$IMAGE" python -m pip check | tee release-assets/pip-check.log
+          docker run --rm --network none "$IMAGE" python /workspace/scripts/check_cpu.py 2>&1 | tee release-assets/cpu-check.log
+          docker run --rm --network none "$IMAGE" python -m pip freeze > release-assets/requirements-actual.txt
+          docker image inspect "$IMAGE" > release-assets/image-inspect.json
+      - name: Export complete image and reimport
+        run: |
+          set -euo pipefail
+          docker save "$IMAGE" | gzip -1 | split -d --numeric-suffixes=1 -a 3 -b 1500000000 - release-assets/sar-mmrotate-swin-t-rfrcnn-v1.tar.gz.part
+          cd release-assets
+          cat *.part* | gzip -t
+          cat *.part* | sha256sum | sed 's/  -$/  sar-mmrotate-swin-t-rfrcnn-v1.tar.gz/' > sar-mmrotate-swin-t-rfrcnn-v1.tar.gz.sha256
+          docker image rm "$IMAGE"
+          docker builder prune -af
+          cat *.part* | gzip -dc | docker load 2>&1 | tee reimport.log
+          docker run --rm --network none "$IMAGE" python -c 'from mmcv.ops import nms_rotated; import mmrotate; print("Reimported offline runtime: PASS")' | tee -a reimport.log
+          cp ../docker-images/mmrotate/load.sh ../docker-images/mmrotate/IMPORT.md .
+          tar -czf build-source.tar.gz -C .. docker-images/mmrotate .github/workflows/mmrotate-offline.yml
+          sha256sum ./* > ../mmrotate-checksums.tmp
+          mv ../mmrotate-checksums.tmp SHA256SUMS
+      - name: Publish complete image
+        run: |
+          gh release create "$TAG" --draft --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title 'SAR MMRotate Swin-T CUDA11.8 完整离线镜像' --notes-file release-assets/IMPORT.md
+          gh release upload "$TAG" release-assets/* --repo "$GITHUB_REPOSITORY"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mmrotate-diagnostics
+          path: release-assets/*.log
